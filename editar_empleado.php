@@ -21,7 +21,7 @@ try {
         die("Empleado no encontrado.");
     }
 
-    // 3. Cargar Catálogos (Igual que en crear)
+    // 3. Cargar Catálogos
     $renglones = $pdo->query("SELECT * FROM catalogo_renglones ORDER BY codigo ASC")->fetchAll();
     $areas = $pdo->query("SELECT * FROM catalogo_areas ORDER BY nombre ASC")->fetchAll();
     $cargos_nominales = $pdo->query("SELECT * FROM catalogo_puestos_nominales ORDER BY nombre ASC")->fetchAll();
@@ -45,6 +45,8 @@ try {
         .card { border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-radius: 12px; }
         .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .section-title { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-bottom: 20px; margin-top: 10px; }
+        /* Forzar visualización en mayúsculas */
+        .uppercase-input { text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -54,7 +56,7 @@ try {
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">✏️ Editar Empleado</h2>
-            <p class="text-muted">Actualizando información de: <strong><?= $emp['nombres'] ?> <?= $emp['apellidos'] ?></strong></p>
+            <p class="text-muted">Actualizando información de: <strong><?= htmlspecialchars($emp['nombres'] . ' ' . $emp['apellidos']) ?></strong></p>
         </div>
         <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
     </div>
@@ -108,15 +110,15 @@ try {
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small">NIT</label>
-                            <input type="text" class="form-control" name="nit" value="<?= $emp['nit'] ?>">
+                            <input type="text" class="form-control uppercase-input" name="nit" value="<?= $emp['nit'] ?>">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Nombres</label>
-                            <input type="text" class="form-control" name="nombres" value="<?= $emp['nombres'] ?>" required>
+                            <input type="text" class="form-control uppercase-input" name="nombres" value="<?= $emp['nombres'] ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Apellidos</label>
-                            <input type="text" class="form-control" name="apellidos" value="<?= $emp['apellidos'] ?>" required>
+                            <input type="text" class="form-control uppercase-input" name="apellidos" value="<?= $emp['apellidos'] ?>" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label text-muted small">Fecha Nacimiento</label>
@@ -141,7 +143,7 @@ try {
                         </div>
                     </div>
 
-<div class="section-title text-primary mt-4">2. Contacto y Ubicación</div>
+                    <div class="section-title text-primary mt-4">2. Contacto y Ubicación</div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Teléfono</label>
@@ -153,7 +155,7 @@ try {
                         </div>
                         <div class="col-12">
                             <label class="form-label text-muted small">Dirección</label>
-                            <input type="text" class="form-control" name="direccion" value="<?= $emp['direccion'] ?>" required>
+                            <input type="text" class="form-control uppercase-input" name="direccion" value="<?= $emp['direccion'] ?>" required>
                         </div>
                     </div>
 
@@ -164,7 +166,7 @@ try {
                         </div>
                         <div class="col-md-6 mt-2">
                             <label class="form-label text-muted small">Nombre del Contacto 1</label>
-                            <input type="text" class="form-control" name="contacto_emergencia_nombre" value="<?= $emp['contacto_emergencia_nombre'] ?>">
+                            <input type="text" class="form-control uppercase-input" name="contacto_emergencia_nombre" value="<?= $emp['contacto_emergencia_nombre'] ?>">
                         </div>
                         <div class="col-md-6 mt-2">
                             <label class="form-label text-muted small">Teléfono del Contacto 1</label>
@@ -176,7 +178,7 @@ try {
                         </div>
                         <div class="col-md-6 mt-2">
                             <label class="form-label text-muted small">Nombre del Contacto 2</label>
-                            <input type="text" class="form-control" name="contacto_emergencia_nombre2" value="<?= $emp['contacto_emergencia_nombre2'] ?>">
+                            <input type="text" class="form-control uppercase-input" name="contacto_emergencia_nombre2" value="<?= $emp['contacto_emergencia_nombre2'] ?>">
                         </div>
                         <div class="col-md-6 mt-2">
                             <label class="form-label text-muted small">Teléfono del Contacto 2</label>
@@ -211,7 +213,7 @@ try {
                             <input type="date" class="form-control" name="fecha_inicio_labores" value="<?= $emp['fecha_inicio_labores'] ?>" required>
                         </div>
                         
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label text-muted small">Puesto Nominal (Contrato)</label>
                             <select class="form-select" name="id_puesto_nominal" required>
                                 <?php foreach($cargos_nominales as $cn): ?>
@@ -221,7 +223,7 @@ try {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label text-muted small">Puesto Funcional (Real)</label>
                             <select class="form-select" name="id_puesto_funcional" required>
                                 <?php foreach($cargos_funcionales as $cf): ?>
@@ -231,6 +233,7 @@ try {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                    
                     </div>
 
                     <div class="mt-5 d-flex justify-content-end gap-2">
@@ -245,33 +248,36 @@ try {
 </div>
 
 <script>
-// JS MEJORADO: Previsualizar imagen sin recargar la página
+// Previsualizar imagen
 function previewImage(input) {
     if (input.files && input.files[0]) {
         var reader = new FileReader();
         reader.onload = function(e) {
             var img = document.getElementById('previewImg');
             var initials = document.getElementById('initialsAvatar');
-            
-            // Si estaba mostrando las iniciales, las ocultamos y mostramos el <img>
             if(initials) {
                 initials.classList.add('d-none');
                 img.classList.remove('d-none');
             }
-            
-            // Cargamos la nueva imagen en el <img>
             img.src = e.target.result;
         }
         reader.readAsDataURL(input.files[0]);
     }
 }
 
-// Validación Bootstrap
+// Validación Bootstrap y Conversión a Mayúsculas
 (function () {
   'use strict'
   var forms = document.querySelectorAll('.needs-validation')
   Array.prototype.slice.call(forms).forEach(function (form) {
       form.addEventListener('submit', function (event) {
+        
+        // Convertir campos marcados a MAYÚSCULAS antes de enviar
+        const inputsToUpper = form.querySelectorAll('.uppercase-input');
+        inputsToUpper.forEach(input => {
+            input.value = input.value.toUpperCase();
+        });
+
         if (!form.checkValidity()) {
           event.preventDefault()
           event.stopPropagation()
