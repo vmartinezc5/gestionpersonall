@@ -1,0 +1,17 @@
+* Crear usuario solo se corre con las credenciales para el hash
+
+
+* En el código de perfil_empleado.php que revisamos antes, tenías configurado el guardado rápido de sanciones en la misma página (líneas 19-25: if ($_POST['action'] == 'add_sancion') {...}). Si vas a usar este nuevo archivo guardar_reporte.php porque permite subir archivos PDF, debes asegurarte de que el formulario en tu modal de Agregar Reporte apunte a este archivo, así:
+
+<form action="guardar_reporte.php" method="POST" enctype="multipart/form-data">
+
+(Asegúrate de agregarle el enctype="multipart/form-data" a ese modal y su campo <input type="file" name="archivo">, porque si no, no va a viajar el PDF).
+
+
+
+
+*  PARA ELIMINAR DEFINITIVAMENTE:
+
+http://localhost/tu_carpeta/eliminar_empleado_dev.php?id=15
+
+

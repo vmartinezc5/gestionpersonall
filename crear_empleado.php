@@ -1,20 +1,14 @@
 <?php
-
 // crear_empleado.php
 require_once 'seguridad.php';
 require_once 'config/db.php';
 
 // Obtener datos para los "Selects" (Dropdowns)
 try {
-    // 1. Renglones
     $renglones = $pdo->query("SELECT * FROM catalogo_renglones ORDER BY codigo ASC")->fetchAll();
-    // 2. Áreas
     $areas = $pdo->query("SELECT * FROM catalogo_areas ORDER BY nombre ASC")->fetchAll();
-    // 3. Cargos Nominales (Contrato)
     $cargos_nominales = $pdo->query("SELECT * FROM catalogo_puestos_nominales ORDER BY nombre ASC")->fetchAll();
-    // 4. Cargos Funcionales (Real)
     $cargos_funcionales = $pdo->query("SELECT * FROM catalogo_cargos ORDER BY nombre ASC")->fetchAll();
-
 } catch (PDOException $e) {
     die("Error al cargar catálogos: " . $e->getMessage());
 }
@@ -31,6 +25,7 @@ try {
         body { background-color: #f8f9fa; }
         .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
         .form-floating > label { color: #6c757d; }
+        .section-header { color: #0d6efd; border-bottom: 2px solid #e9ecef; padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 2rem; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -47,8 +42,8 @@ try {
             <div class="card p-4">
                 <form action="guardar_empleado.php" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                     
-                    <h5 class="text-secondary border-bottom pb-2 mb-3">1. Información Personal</h5>
-                    <div class="row g-3 mb-4">
+                    <h5 class="section-header">1. Información Personal</h5>
+                    <div class="row g-3">
                         <div class="col-md-4">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="dpi" name="dpi" placeholder="DPI" required minlength="13" maxlength="13" pattern="\d{13}">
@@ -58,13 +53,13 @@ try {
                         </div>
                         <div class="col-md-4">
                             <div class="form-floating">
-                                <input type="text" class="form-control" id="nombres" name="nombres" placeholder="Nombres" required>
+                                <input type="text" class="form-control" id="nombres" name="nombres" required oninput="this.value = this.value.toUpperCase()" placeholder="NOMBRES">
                                 <label for="nombres">Nombres *</label>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-floating">
-                                <input type="text" class="form-control" id="apellidos" name="apellidos" placeholder="Apellidos" required>
+                                <input type="text" class="form-control" id="apellidos" name="apellidos" required oninput="this.value = this.value.toUpperCase()" placeholder="APELLIDOS">
                                 <label for="apellidos">Apellidos *</label>
                             </div>
                         </div>
@@ -106,47 +101,78 @@ try {
                                 <label for="nit">NIT</label>
                             </div>
                         </div>
-                        
+                    </div>
+
+                    <h5 class="section-header">2. Contacto y Ubicación</h5>
+                    <div class="row g-3">
                         <div class="col-md-4">
                             <div class="form-floating">
                                 <input type="tel" class="form-control" id="telefono" name="telefono" placeholder="Teléfono" required>
                                 <label for="telefono">Teléfono *</label>
                             </div>
                         </div>
-                        
                         <div class="col-md-8">
                             <div class="form-floating">
                                 <input type="email" class="form-control" id="correo_electronico" name="correo_electronico" placeholder="nombre@ejemplo.com">
                                 <label for="correo_electronico">Correo Electrónico</label>
                             </div>
                         </div>
-
                         <div class="col-12">
                             <div class="form-floating">
                                 <textarea class="form-control" id="direccion" name="direccion" placeholder="Dirección Completa" style="height: 80px" required></textarea>
                                 <label for="direccion">Dirección de Residencia *</label>
                             </div>
                         </div>
-                    </div>
-
-                    <h5 class="text-secondary border-bottom pb-2 mb-3">2. Contacto de Emergencia</h5>
-                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="form-floating">
-                                <input type="text" class="form-control" id="contacto_emergencia_nombre" name="contacto_emergencia_nombre" placeholder="Nombre Contacto">
-                                <label for="contacto_emergencia_nombre">Nombre del Contacto</label>
+                                <input type="text" class="form-control" id="departamento" name="departamento" required oninput="this.value = this.value.toUpperCase()" placeholder="DEPARTAMENTO">
+                                <label for="departamento">Departamento</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="municipio" name="municipio" required oninput="this.value = this.value.toUpperCase()" placeholder="MUNICIPIO">
+                                  <label for="municipio">Municipio</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="section-header">3. Contactos de Emergencia</h5>
+                    
+                    <h6 class="text-muted small text-uppercase fw-bold mb-2">Contacto Principal</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="contacto_emergencia_nombre" name="contacto_emergencia_nombre" required oninput="this.value = this.value.toUpperCase()" placeholder="NOMBRE CONTACTO">
+                                <label for="contacto_emergencia_nombre">Nombre del Contacto 1</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="tel" class="form-control" id="contacto_emergencia_telefono" name="contacto_emergencia_telefono" placeholder="Teléfono Contacto">
-                                <label for="contacto_emergencia_telefono">Teléfono del Contacto</label>
+                                <label for="contacto_emergencia_telefono">Teléfono del Contacto 1</label>
                             </div>
                         </div>
                     </div>
 
-                    <h5 class="text-secondary border-bottom pb-2 mb-3">3. Información Institucional</h5>
-                    <div class="row g-3 mb-4">
+                    <h6 class="text-muted small text-uppercase fw-bold mb-2 mt-2">Contacto Secundario (Opcional)</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="contacto_emergencia_nombre2" name="contacto_emergencia_nombre2" required oninput="this.value = this.value.toUpperCase()" placeholder="NOMBRE CONTACTO 2">
+                                <label for="contacto_emergencia_nombre2">Nombre del Contacto 2</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="tel" class="form-control" id="contacto_emergencia_telefono2" name="contacto_emergencia_telefono2" placeholder="Teléfono Contacto 2">
+                                <label for="contacto_emergencia_telefono2">Teléfono del Contacto 2</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="section-header">4. Información Institucional</h5>
+                    <div class="row g-3">
                          <div class="col-md-4">
                             <div class="form-floating">
                                 <select class="form-select" id="id_renglon" name="id_renglon" required>
@@ -203,7 +229,7 @@ try {
                         </div>
                     </div>
                     
-                    <h5 class="text-secondary border-bottom pb-2 mb-3">4. Multimedia</h5>
+                    <h5 class="section-header">5. Multimedia</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-12">
                             <label for="foto_perfil" class="form-label text-secondary">Foto de Perfil</label>
@@ -211,7 +237,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
                         <button type="reset" class="btn btn-light me-md-2">Limpiar</button>
                         <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Empleado</button>
                     </div>

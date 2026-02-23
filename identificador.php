@@ -1,28 +1,73 @@
 <?php
 // identificador.php
 session_start();
+require_once 'config/db.php'; // Importante: Conexión a la BD
 
-// Si ya está logueado, lo mandamos directo al dashboard
+// 1. Si ya está logueado, redirigir al dashboard
 if (isset($_SESSION['usuario_logueado']) && $_SESSION['usuario_logueado'] === true) {
     header("Location: index.php");
     exit;
 }
 
 $error = '';
+$mensaje_exito = ''; // Nueva variable para mensajes positivos
 
+// Detectar si viene de un cierre por inactividad
+if (isset($_GET['error']) && $_GET['error'] == 'expirado') {
+    $error = "Por seguridad, tu sesión se ha cerrado tras 40 minutos de inactividad.";
+}
+
+// --- NUEVO: Detectar si el usuario cerró sesión voluntariamente ---
+if (isset($_GET['logout']) && $_GET['logout'] == 'success') {
+    $mensaje_exito = "Has cerrado sesión correctamente. ¡Hasta pronto!";
+}
+// -----------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $usuario = $_POST['usuario'] ?? '';
-    $password = $_POST['password'] ?? '';
+    // Limpiamos espacios en blanco
+    $usuario_form = trim($_POST['usuario'] ?? '');
+    $password_form = trim($_POST['password'] ?? '');
 
-    // CREDENCIALES FIJAS
-    if ($usuario === 'JEFATURA' && $password === 'Jefatura2026') {
-        // Credenciales correctas
-        $_SESSION['usuario_logueado'] = true;
-        $_SESSION['usuario_nombre'] = 'Jefatura';
-        header("Location: index.php");
-        exit;
+    if (empty($usuario_form) || empty($password_form)) {
+        $error = "Por favor ingrese usuario y contraseña.";
     } else {
-        $error = "Usuario o contraseña incorrectos.";
+        try {
+            // 2. Buscar usuario en la Base de Datos
+            $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE nombre_usuario = ? LIMIT 1");
+            $stmt->execute([$usuario_form]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // 3. Verificar si existe el usuario y si la contraseña coincide (hash)
+            if ($user && password_verify($password_form, $user['password'])) {
+                
+                // Verificar que el usuario no esté inactivo
+                if ($user['estado'] === 'Activo') {
+                    
+                    // --- LOGIN EXITOSO ---
+                    $_SESSION['usuario_logueado'] = true;
+                    $_SESSION['usuario_id'] = $user['id'];
+                    $_SESSION['usuario_nombre'] = $user['nombre_completo']; // Ej: Jefatura Principal
+                    $_SESSION['usuario_rol'] = $user['rol'];       // Ej: Administrador
+
+                    // 4. Registrar el acceso en la tabla 'historial_accesos'
+                    $ip_acceso = $_SERVER['REMOTE_ADDR']; // Obtiene la IP del usuario
+                    $logStmt = $pdo->prepare("INSERT INTO historial_accesos (usuario_id, ip_acceso) VALUES (?, ?)");
+                    $logStmt->execute([$user['id'], $ip_acceso]);
+
+                    // Redireccionar
+                    header("Location: index.php");
+                    exit;
+                
+                } else {
+                    $error = "Su usuario está inactivo. Contacte a soporte.";
+                }
+
+            } else {
+                $error = "Usuario o contraseña incorrectos.";
+            }
+
+        } catch (PDOException $e) {
+            $error = "Error de sistema: " . $e->getMessage();
+        }
     }
 }
 ?>
@@ -98,6 +143,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     <?php endif; ?>
 
+                    <?php if(!empty($mensaje_exito)): ?>
+                        <div class="alert alert-success text-center py-2 mb-4" role="alert">
+                            <small><?= $mensaje_exito ?></small>
+                        </div>
+                    <?php endif; ?>
+
                     <form action="" method="POST">
                         <div class="form-floating mb-3">
                             <input type="text" class="form-control" id="usuario" name="usuario" placeholder="Usuario" required autofocus>
@@ -114,7 +165,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             <div class="text-center mt-3 text-white-50 small">
-                &copy; 2026 Sistema de Gestión Hospitalaria diseñada por Victor.
+                &copy; 2026 Sistema de Gestión Hospitalario diseñado por Victor Martínez.
+            </div>
         </div>
     </div>
 </div>

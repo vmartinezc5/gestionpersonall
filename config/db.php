@@ -3,7 +3,7 @@
 
 // 1. Credenciales de la Base de Datos
 $host = 'localhost';
-$port = '3307';        // Puerto específico de tu XAMPP
+$port = '3306';        // Puerto específico de tu XAMPP
 $db   = 'sistema_rrhh'; // Nombre de base de datos. 
 $user = 'root';        // Usuario por defecto
 $pass = '';            // Contraseña por defecto

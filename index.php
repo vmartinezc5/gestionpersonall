@@ -23,7 +23,8 @@ $filtro_orden   = $_GET['f_orden'] ?? 'reciente'; // Valor por defecto
 
 // Base de la consulta
 $sql = "SELECT 
-            e.id, e.dpi, e.nombres, e.apellidos, e.telefono, e.estado, e.foto_perfil, e.correo_electronico,
+            e.id, e.dpi, e.nombres, e.apellidos, e.telefono, e.estado, e.foto_perfil, e.correo_electronico, 
+            e.fecha_inicio_labores,
             a.nombre AS area,
             pn.nombre AS puesto_nominal,    
             cf.nombre AS puesto_funcional,  
@@ -33,7 +34,6 @@ $sql = "SELECT
         INNER JOIN catalogo_puestos_nominales pn ON e.id_puesto_nominal = pn.id
         INNER JOIN catalogo_cargos cf ON e.id_puesto_funcional = cf.id
         INNER JOIN catalogo_renglones r ON e.id_renglon = r.id";
-
 $params = [];
 $condiciones = [];
 
@@ -76,8 +76,6 @@ try {
     $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Contadores (Calculados sobre los resultados filtrados o globales según prefieras)
-    // Nota: Para contadores globales reales, deberías hacer queries aparte sin filtros.
-    // Aquí los haremos sobre lo visible para que coincida con la tabla.
     $total_emp = count($empleados);
     $activos = count(array_filter($empleados, fn($e) => $e['estado'] === 'Activo'));
     $bajas = count(array_filter($empleados, fn($e) => $e['estado'] === 'Baja'));
@@ -104,7 +102,9 @@ try {
             display: flex; align-items: center; justify-content: center;
             font-weight: bold; color: white; font-size: 1.1rem;
         }
-        .table-hover tbody tr:hover { background-color: #f8f9fa; }
+        /* Cambio visual: Al pasar el mouse, el cursor se vuelve una manita indicando que es clickeable */
+        .table-hover tbody tr { cursor: pointer; transition: background-color 0.2s; }
+        .table-hover tbody tr:hover { background-color: #e9ecef; }
         .card-stat { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .text-nominal { font-size: 0.85rem; color: #6c757d; }
@@ -112,9 +112,7 @@ try {
 </head>
 <body>
 
-
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4">
   <div class="container">
     <a class="navbar-brand fw-bold" href="#"><i class="bi bi-people-fill me-2"></i>RRHH Manager</a>
     
@@ -128,7 +126,6 @@ try {
     </div>
   </div>
 </nav>
-
 
 <div class="container pb-5">
 
@@ -257,17 +254,19 @@ try {
                 <tbody>
                     <?php if (count($empleados) > 0): ?>
                         <?php foreach ($empleados as $emp): ?>
-                        <tr>
+                        
+                        <tr ondblclick="window.location.href='perfil_empleado.php?id=<?= $emp['id'] ?>'" title="Doble clic para ver perfil">
+                            
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
                                     <?php 
-                                        // Lógica para mostrar foto o iniciales
                                         $initials = strtoupper(substr($emp['nombres'], 0, 1) . substr($emp['apellidos'], 0, 1));
                                         $colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger', 'bg-secondary'];
                                         $randomColor = $colors[array_rand($colors)];
                                         
-                                        if (!empty($emp['foto_perfil']) && file_exists("uploads/" . $emp['foto_perfil'])) {
-                                            echo "<img src='uploads/{$emp['foto_perfil']}' class='avatar-circle me-3'>";
+                                        // AQUÍ ESTÁ EL CAMBIO: Ahora busca en imagenes/perfiles/
+                                        if (!empty($emp['foto_perfil']) && file_exists("imagenes/perfiles/" . $emp['foto_perfil'])) {
+                                            echo "<img src='imagenes/perfiles/{$emp['foto_perfil']}' class='avatar-circle me-3'>";
                                         } else {
                                             echo "<div class='avatar-circle {$randomColor} me-3'>{$initials}</div>";
                                         }
@@ -278,12 +277,34 @@ try {
                                         <?php if($emp['correo_electronico']): ?>
                                             <div class="small text-muted"><i class="bi bi-envelope me-1"></i><?= $emp['correo_electronico'] ?></div>
                                         <?php endif; ?>
+                                        
+                                        <?php 
+                                            $fecha_inicio = new DateTime($emp['fecha_inicio_labores']);
+                                            $hoy = new DateTime();
+                                            $antiguedad = $fecha_inicio->diff($hoy);
+                                            
+                                            // Damos formato visual al tiempo
+                                            $tiempo_texto = "";
+                                            if ($antiguedad->y > 0) {
+                                                $tiempo_texto .= $antiguedad->y . " año(s) ";
+                                            }
+                                            if ($antiguedad->m > 0) {
+                                                $tiempo_texto .= $antiguedad->m . " mes(es)";
+                                            }
+                                            if ($antiguedad->y == 0 && $antiguedad->m == 0) {
+                                                $tiempo_texto = $antiguedad->d . " día(s)"; // Si es muy nuevo
+                                            }
+                                        ?>
+                                        <div class="small text-primary mt-1 fw-semibold">
+                                            <i class="bi bi-calendar-check me-1"></i>Antigüedad: <?= $tiempo_texto ?>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
 
                             <td>
-                                <div class="fw-semibold text-dark"><?= $emp['puesto_funcional'] ?></div> <div class="text-nominal">
+                                <div class="fw-semibold text-dark"><?= $emp['puesto_funcional'] ?></div> 
+                                <div class="text-nominal">
                                     <i class="bi bi-briefcase me-1"></i>Ctto: <?= $emp['puesto_nominal'] ?>
                                 </div>
                             </td>
@@ -308,17 +329,9 @@ try {
                             </td>
 
                             <td class="text-end pe-4">
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><a class="dropdown-item" href="editar_empleado.php?id=<?= $emp['id'] ?>"><i class="bi bi-pencil me-2 text-warning"></i>Editar</a></li>
-                                        <li><a class="dropdown-item" href="perfil_empleado.php?id=<?= $emp['id'] ?>"><i class="bi bi-person-badge me-2 text-info"></i>Ver Perfil</a></li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete(<?= $emp['id'] ?>)"><i class="bi bi-trash me-2"></i>Eliminar Registro</a></li>
-                                    </ul>
-                                </div>
+                                <a href="perfil_empleado.php?id=<?= $emp['id'] ?>" class="btn btn-sm btn-outline-primary shadow-sm" title="Ver Perfil Completo">
+                                    <i class="bi bi-person-vcard me-1"></i> Perfil
+                                </a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -340,7 +353,7 @@ try {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Buscador simple en JavaScript
+    // Buscador simple en JavaScript (Búsqueda en tiempo real)
     document.getElementById('searchInput').addEventListener('keyup', function() {
         let filter = this.value.toLowerCase();
         let rows = document.querySelectorAll('#employeeTable tbody tr');
@@ -350,14 +363,6 @@ try {
             row.style.display = text.includes(filter) ? '' : 'none';
         });
     });
-
-    function confirmDelete(id) {
-        // Mensaje de advertencia fuerte para evitar accidentes
-        if(confirm('⚠️ ¿Estás seguro de ELIMINAR PERMANENTEMENTE este registro?\n\nEsta acción no se puede deshacer y borrará historial, reportes y fotos asociados.')) {
-            window.location.href = 'eliminar_empleado.php?id=' + id;
-        }
-    }
-</script>
 </script>
 
 </body>

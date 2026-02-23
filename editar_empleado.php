@@ -67,13 +67,14 @@ try {
             
             <div class="col-lg-3 mb-4">
                 <div class="card p-4 text-center sticky-top" style="top: 20px; z-index: 1;">
-                    <div class="mb-3 position-relative">
-                        <?php if (!empty($emp['foto_perfil']) && file_exists("uploads/" . $emp['foto_perfil'])): ?>
-                            <img src="uploads/<?= $emp['foto_perfil'] ?>" class="img-preview mb-2" id="previewImg">
+                    <div class="mb-3 position-relative" id="contenedor-foto">
+                        <?php if (!empty($emp['foto_perfil']) && file_exists("imagenes/perfiles/" . $emp['foto_perfil'])): ?>
+                            <img src="imagenes/perfiles/<?= $emp['foto_perfil'] ?>" class="img-preview mb-2" id="previewImg">
                         <?php else: ?>
-                            <div class="img-preview d-flex align-items-center justify-content-center bg-secondary text-white mx-auto mb-2" style="font-size: 2rem;">
+                            <div id="initialsAvatar" class="img-preview d-flex align-items-center justify-content-center bg-secondary text-white mx-auto mb-2" style="font-size: 2rem;">
                                 <?= strtoupper(substr($emp['nombres'], 0, 1) . substr($emp['apellidos'], 0, 1)) ?>
                             </div>
+                            <img src="" class="img-preview mb-2 d-none" id="previewImg">
                         <?php endif; ?>
                     </div>
                     
@@ -140,7 +141,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="section-title text-primary mt-4">2. Contacto</div>
+<div class="section-title text-primary mt-4">2. Contacto y Ubicación</div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Teléfono</label>
@@ -154,14 +155,32 @@ try {
                             <label class="form-label text-muted small">Dirección</label>
                             <input type="text" class="form-control" name="direccion" value="<?= $emp['direccion'] ?>" required>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label text-muted small">Nombre Contacto Emergencia</label>
+                    </div>
+
+                    <div class="section-title text-danger mt-4"><i class="bi bi-heart-pulse me-1"></i> Contactos de Emergencia</div>
+                    <div class="row g-3 bg-light p-3 rounded border">
+                        <div class="col-12 mb-0">
+                            <h6 class="text-muted small text-uppercase fw-bold m-0">Contacto Principal</h6>
+                        </div>
+                        <div class="col-md-6 mt-2">
+                            <label class="form-label text-muted small">Nombre del Contacto 1</label>
                             <input type="text" class="form-control" name="contacto_emergencia_nombre" value="<?= $emp['contacto_emergencia_nombre'] ?>">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-muted small">Teléfono Emergencia</label>
+                        <div class="col-md-6 mt-2">
+                            <label class="form-label text-muted small">Teléfono del Contacto 1</label>
                             <input type="tel" class="form-control" name="contacto_emergencia_telefono" value="<?= $emp['contacto_emergencia_telefono'] ?>">
+                        </div>
+
+                        <div class="col-12 mt-4 mb-0">
+                            <h6 class="text-muted small text-uppercase fw-bold m-0">Contacto Secundario (Opcional)</h6>
+                        </div>
+                        <div class="col-md-6 mt-2">
+                            <label class="form-label text-muted small">Nombre del Contacto 2</label>
+                            <input type="text" class="form-control" name="contacto_emergencia_nombre2" value="<?= $emp['contacto_emergencia_nombre2'] ?>">
+                        </div>
+                        <div class="col-md-6 mt-2">
+                            <label class="form-label text-muted small">Teléfono del Contacto 2</label>
+                            <input type="tel" class="form-control" name="contacto_emergencia_telefono2" value="<?= $emp['contacto_emergencia_telefono2'] ?>">
                         </div>
                     </div>
 
@@ -226,18 +245,22 @@ try {
 </div>
 
 <script>
-// Previsualizar imagen antes de subir
+// JS MEJORADO: Previsualizar imagen sin recargar la página
 function previewImage(input) {
     if (input.files && input.files[0]) {
         var reader = new FileReader();
         reader.onload = function(e) {
             var img = document.getElementById('previewImg');
-            if(img) {
-                img.src = e.target.result;
-            } else {
-                // Si no existía imagen (era div de iniciales), recargamos para simplificar o manipulamos DOM
-                location.reload(); // Solución rápida, o podrías reemplazar el div con img vía JS
+            var initials = document.getElementById('initialsAvatar');
+            
+            // Si estaba mostrando las iniciales, las ocultamos y mostramos el <img>
+            if(initials) {
+                initials.classList.add('d-none');
+                img.classList.remove('d-none');
             }
+            
+            // Cargamos la nueva imagen en el <img>
+            img.src = e.target.result;
         }
         reader.readAsDataURL(input.files[0]);
     }
