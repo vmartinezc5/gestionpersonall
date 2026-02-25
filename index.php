@@ -223,21 +223,26 @@ try {
                     </select>
                 </div>
 
-               <div class="col-md-3 text-end d-flex gap-2 justify-content-end">
+                <div class="col-md-3 d-flex gap-2 justify-content-md-end justify-content-center flex-wrap mt-2 mt-md-0">
+                    
                     <?php if(!empty($filtro_area) || !empty($filtro_renglon) || $filtro_orden != 'reciente'): ?>
-                        <a href="index.php" class="btn btn-outline-secondary" title="Limpiar Filtros"><i class="bi bi-x-lg"></i></a>
+                        <a href="index.php" class="btn btn-sm btn-outline-danger shadow-sm" title="Limpiar Filtros">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
                     <?php endif; ?>
                     
-                    <a href="estadisticas.php" class="btn btn-info text-white text-nowrap shadow-sm">
-                        <i class="bi bi-bar-chart-fill"></i> Panel Estadístico
+                    <a href="estadisticas.php" class="btn btn-sm btn-info text-white text-nowrap shadow-sm" title="Ir a Estadísticas">
+                        <i class="bi bi-bar-chart-fill"></i> 
+                        <span class="d-none d-lg-inline">Estadísticas</span>
                     </a>
                     
-                    <a href="crear_empleado.php" class="btn btn-primary text-nowrap shadow-sm">
-                        <i class="bi bi-plus-lg"></i> Nuevo Empleado
+                    <a href="crear_empleado.php" class="btn btn-sm btn-primary text-nowrap shadow-sm">
+                        <i class="bi bi-plus-lg"></i> 
+                        Nuevo <span class="d-none d-xl-inline">Empleado</span>
                     </a>
+                    
                 </div>
-
-            </div>
+                            </div>
           </form>
          </div>
         </div>
