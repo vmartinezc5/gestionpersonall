@@ -223,12 +223,16 @@ try {
                     </select>
                 </div>
 
-                <div class="col-md-3 text-end d-flex gap-2 justify-content-end">
+               <div class="col-md-3 text-end d-flex gap-2 justify-content-end">
                     <?php if(!empty($filtro_area) || !empty($filtro_renglon) || $filtro_orden != 'reciente'): ?>
                         <a href="index.php" class="btn btn-outline-secondary" title="Limpiar Filtros"><i class="bi bi-x-lg"></i></a>
                     <?php endif; ?>
                     
-                    <a href="crear_empleado.php" class="btn btn-primary text-nowrap">
+                    <a href="estadisticas.php" class="btn btn-info text-white text-nowrap shadow-sm">
+                        <i class="bi bi-bar-chart-fill"></i> Panel Estadístico
+                    </a>
+                    
+                    <a href="crear_empleado.php" class="btn btn-primary text-nowrap shadow-sm">
                         <i class="bi bi-plus-lg"></i> Nuevo Empleado
                     </a>
                 </div>
