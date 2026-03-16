@@ -154,8 +154,17 @@ try {
                             <input type="email" class="form-control" name="correo_electronico" value="<?= $emp['correo_electronico'] ?>">
                         </div>
                         <div class="col-12">
-                            <label class="form-label text-muted small">Dirección</label>
+                            <label class="form-label text-muted small">Dirección Completa</label>
                             <input type="text" class="form-control uppercase-input" name="direccion" value="<?= $emp['direccion'] ?>" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Municipio</label>
+                            <input type="text" class="form-control uppercase-input" name="municipio" value="<?= $emp['municipio'] ?? '' ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Departamento</label>
+                            <input type="text" class="form-control uppercase-input" name="departamento" value="<?= $emp['departamento'] ?? '' ?>" required>
                         </div>
                     </div>
 

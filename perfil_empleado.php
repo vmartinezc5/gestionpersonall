@@ -49,7 +49,31 @@
             header("Location: perfil_empleado.php?id=$id&tab=asistencia");
             exit;
         }
-    }
+
+// E) Registrar Baja Definitiva (CORREGIDO PARA EVITAR EL ERROR)
+        if ($_POST['action'] == 'registrar_baja') {
+            try {
+                $pdo->beginTransaction();
+                
+                // 1. Guardar en el historial de bajas
+                $stmtBaja = $pdo->prepare("INSERT INTO historial_bajas (empleado_id, tipo_baja, fecha_baja, motivo, registrado_por) VALUES (?, ?, ?, ?, ?)");
+                $stmtBaja->execute([$id, $_POST['tipo_baja'], $_POST['fecha_baja'], $_POST['motivo'], $usuario_actual]);
+                
+                // 2. Cambiar el estado del empleado principal a 'Baja'
+                $stmtUpdate = $pdo->prepare("UPDATE empleados SET estado = 'Baja' WHERE id = ?");
+                $stmtUpdate->execute([$id]);
+                
+                $pdo->commit();
+                
+                // Recargar la página en la pestaña de bajas
+                header("Location: perfil_empleado.php?id=$id&tab=bajas");
+                exit;
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                die("Error crítico al registrar la baja: " . $e->getMessage());
+            }
+        }
+    } // <-- AQUÍ TERMINA CORRECTAMENTE LA VALIDACIÓN DEL POST
 
     // ---------------------------------------------------------
     // CONSULTAS DE DATOS
@@ -89,7 +113,12 @@
         $stmtHist->execute([$id]);
         $historial = $stmtHist->fetchAll();
 
-        // 5. Catálogos para el Modal de Promoción
+        // 5. NUEVO: Datos de Bajas y Retiros
+        $stmtBajas = $pdo->prepare("SELECT * FROM historial_bajas WHERE empleado_id = ? ORDER BY fecha_baja DESC");
+        $stmtBajas->execute([$id]);
+        $lista_bajas = $stmtBajas->fetchAll();
+
+        // 6. Catálogos para el Modal de Promoción
         $renglones = $pdo->query("SELECT * FROM catalogo_renglones ORDER BY codigo ASC")->fetchAll();
         $areas = $pdo->query("SELECT * FROM catalogo_areas ORDER BY nombre ASC")->fetchAll();
         $cargos = $pdo->query("SELECT * FROM catalogo_cargos ORDER BY nombre ASC")->fetchAll();
@@ -155,7 +184,14 @@
         <div class="container">
             <div class="d-flex justify-content-between mb-3">
                 <a href="index.php" class="btn btn-outline-light-custom btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
-                <a href="editar_empleado.php?id=<?= $emp['id'] ?>" class="btn btn-light btn-sm"><i class="bi bi-pencil"></i> Editar Datos</a>
+                <div>
+                    <a href="editar_empleado.php?id=<?= $emp['id'] ?>" class="btn btn-light btn-sm"><i class="bi bi-pencil"></i> Editar Datos</a>
+                    <?php if($emp['estado'] !== 'Baja'): ?>
+                        <button class="btn btn-danger btn-sm ms-2 shadow-sm border-white" data-bs-toggle="modal" data-bs-target="#modalBaja">
+                            <i class="bi bi-person-x-fill"></i> Dar de Baja
+                        </button>
+                    <?php endif; ?>
+                </div>
             </div>
             
             <div class="row align-items-center">
@@ -180,7 +216,7 @@
                     
                     <div class="d-flex flex-wrap gap-2">
                         <span class="badge bg-light text-dark border"><i class="bi bi-building"></i> <?= $emp['area'] ?></span>
-                        <span class="badge bg-light text-dark border"><i class="bi bi-upc-scan"></i> DPI: <?= $emp['dpi'] ?></span>
+                        <span class="badge bg-light text-dark border"><i class="bi bi-upc-scan"></i> DPI: <?= (strlen($emp['dpi']) == 13) ? substr($emp['dpi'], 0, 4) . ' ' . substr($emp['dpi'], 4, 5) . ' ' . substr($emp['dpi'], 9, 4) : $emp['dpi'] ?></span>
                         <?php 
                             $statusClass = match($emp['estado']) {
                                 'Activo' => 'bg-success',
@@ -238,6 +274,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link <?= $activeTab == 'trayectoria' ? 'active' : '' ?>" id="trayectoria-tab" data-bs-toggle="tab" data-bs-target="#trayectoria" type="button">📈 Trayectoria Laboral</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $activeTab == 'bajas' ? 'active' : '' ?>" id="bajas-tab" data-bs-toggle="tab" data-bs-target="#bajas" type="button">🚪 Baja / Retiro</button>
+            </li>
         </ul>
 
         <div class="tab-content" id="myTabContent">
@@ -265,12 +304,22 @@
                                     <div class="info-value"><?= $emp['nit'] ?: 'N/A' ?></div>
                                 </div>
                                 <div class="col-12">
-                                    <div class="info-label">Dirección</div>
+                                    <div class="info-label">Dirección Completa</div>
                                     <div class="info-value"><?= $emp['direccion'] ?></div>
                                 </div>
+                                
+                                <div class="col-6">
+                                    <div class="info-label">Municipio</div>
+                                    <div class="info-value"><?= !empty($emp['municipio']) ? $emp['municipio'] : 'N/A' ?></div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-label">Departamento</div>
+                                    <div class="info-value"><?= !empty($emp['departamento']) ? $emp['departamento'] : 'N/A' ?></div>
+                                </div>
+                                
                                 <div class="col-12">
                                     <div class="info-label">Correo Electrónico</div>
-                                    <div class="info-value"><?= $emp['correo_electronico'] ?: 'No registrado' ?></div>
+                                    <div class="info-value"><?= !empty($emp['correo_electronico']) ? $emp['correo_electronico'] : 'No registrado' ?></div>
                                 </div>
                             </div>
                         </div>
@@ -295,14 +344,39 @@
                                     <div class="info-label">Puesto Funcional (Real)</div>
                                     <div class="info-value"><?= $emp['puesto_fun'] ?></div>
                                 </div>
-                                <div class="col-12">
-                                    <div class="info-label">Antigüedad</div>
+<div class="col-6">
+                                    <div class="info-label">Antigüedad Total</div>
                                     <?php 
                                         $fecha_inicio = new DateTime($emp['fecha_inicio_labores']);
                                         $hoy = new DateTime();
                                         $antiguedad = $fecha_inicio->diff($hoy);
+                                        
+                                        $tiempo_total = "";
+                                        if ($antiguedad->y > 0) $tiempo_total .= $antiguedad->y . " año(s) ";
+                                        if ($antiguedad->m > 0) $tiempo_total .= $antiguedad->m . " mes(es)";
+                                        if ($antiguedad->y == 0 && $antiguedad->m == 0) $tiempo_total = $antiguedad->d . " día(s)";
                                     ?>
-                                    <div class="info-value"><?= $antiguedad->y ?> años, <?= $antiguedad->m ?> meses</div>
+                                    <div class="info-value text-primary fw-semibold"><?= $tiempo_total ?></div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="info-label">Tiempo en Puesto Actual</div>
+                                    <?php 
+                                        // Usamos la fecha del último ascenso, si no hay, usamos la de ingreso
+                                        $fecha_ascenso = !empty($emp['fecha_ultimo_ascenso']) ? new DateTime($emp['fecha_ultimo_ascenso']) : clone $fecha_inicio;
+                                        
+                                        // Prevención de error por fechas invertidas
+                                        if ($hoy < $fecha_ascenso) {
+                                            $tiempo_puesto = "0 día(s)";
+                                        } else {
+                                            $diff_puesto = $fecha_ascenso->diff($hoy);
+                                            $tiempo_puesto = "";
+                                            if ($diff_puesto->y > 0) $tiempo_puesto .= $diff_puesto->y . " año(s) ";
+                                            if ($diff_puesto->m > 0) $tiempo_puesto .= $diff_puesto->m . " mes(es)";
+                                            if ($diff_puesto->y == 0 && $diff_puesto->m == 0) $tiempo_puesto = $diff_puesto->d . " día(s)";
+                                        }
+                                    ?>
+                                    <div class="info-value text-success fw-semibold"><?= $tiempo_puesto ?></div>
                                 </div>
                             </div>
                         </div>
@@ -402,6 +476,12 @@
                                                 'Falta Injustificada' => 'bg-danger',
                                                 'Cambio de Turno' => 'bg-warning text-dark',
                                                 'Incapacidad' => 'bg-secondary',
+                                                
+                                                // --- NUEVOS COLORES ---
+                                                'Suspención HRH' => 'bg-dark',
+                                                'Asueto / Feriado' => 'bg-success',
+                                                'Reposicion de tiempo' => 'bg-primary',
+                                                
                                                 default => 'bg-primary'
                                             };
                                         ?>
@@ -469,6 +549,48 @@
             </div>
 
         </div>
+
+            <div class="tab-pane fade <?= $activeTab == 'bajas' ? 'show active' : '' ?>" id="bajas">
+                <div class="card card-custom p-4">
+                    <h5 class="text-danger mb-4"><i class="bi bi-door-open-fill"></i> Historial de Bajas y Retiros</h5>
+                    
+                    <?php if (count($lista_bajas) > 0): ?>
+                        <div class="row g-4">
+                            <?php foreach($lista_bajas as $baja): ?>
+                            <div class="col-12">
+                                <div class="p-3 border rounded border-danger bg-light position-relative">
+                                    <div class="d-flex justify-content-between border-bottom border-danger border-opacity-25 pb-2 mb-3">
+                                        <span class="fw-bold text-danger text-uppercase"><i class="bi bi-info-circle-fill me-1"></i> <?= $baja['tipo_baja'] ?></span>
+                                        <span class="text-muted small"><i class="bi bi-clock-history"></i> Registrado el: <?= date('d/m/Y', strtotime($baja['created_at'])) ?></span>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-3 mb-2 mb-md-0">
+                                            <div class="info-label text-danger">Fecha Efectiva</div>
+                                            <div class="fw-bold fs-5 text-dark"><?= date('d/m/Y', strtotime($baja['fecha_baja'])) ?></div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <div class="info-label text-danger">Motivo / Observaciones</div>
+                                            <div class="text-dark fst-italic">"<?= nl2br($baja['motivo']) ?>"</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-end mt-3 pt-2 border-top border-danger border-opacity-10">
+                                        <small class="text-muted">
+                                            <i class="bi bi-person-badge me-1"></i>Registrado por: <strong><?= $baja['registrado_por'] ?></strong> | Vo.Bo. Gerencia: <strong>GERENTE GENERAL HOSPITAL </strong>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-shield-check fs-1 d-block mb-3 text-success opacity-50"></i>
+                            El empleado se encuentra activo. No hay registros de baja.
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
     </div> <div class="modal fade" id="modalSancion" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -482,7 +604,9 @@
                         <div class="mb-3">
                             <label class="form-label">Tipo</label>
                             <select class="form-select" name="tipo" required>
-                                <option value="Llamada de Atención">Llamada de Atención</option>
+                                <option value="Amonestación Verbal">Amonestación Verbal</option>
+                                <option value="Amonestación Escrita">Amonestación Escrita</option>
+                                <option value="Apercibimiento">Apercibimiento</option>
                                 <option value="Reporte">Reporte Disciplinario</option>
                                 <option value="Acta Administrativa">Acta Administrativa</option>
                                 <option value="Sanción">Sanción (Suspensión)</option>
@@ -501,6 +625,52 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-danger">Guardar Reporte</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalBaja" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-person-dash-fill"></i> Registrar Baja de Personal</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="registrar_baja">
+                        
+                        <div class="alert alert-warning border-warning">
+                            Estás a punto de dar de baja a <strong><?= $emp['nombres'] ?> <?= $emp['apellidos'] ?></strong>. Esta acción cambiará su estado a <strong>Inactivo (Baja)</strong> en todo el sistema.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Tipo de Baja</label>
+                            <select class="form-select" name="tipo_baja" required>
+                                <option value="" selected disabled>Seleccione...</option>
+                                <option value="Renuncia">Renuncia Voluntaria</option>
+                                <option value="Jubilación">Jubilación</option>
+                                <option value="Fin de Contrato">Finalización de Contrato</option>
+                                <option value="Despido">Despido / Rescisión</option>
+                                <option value="Fallecimiento">Fallecimiento</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Fecha Efectiva de Baja</label>
+                            <input type="date" class="form-control" name="fecha_baja" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Motivo / Observaciones</label>
+                            <textarea class="form-control" name="motivo" rows="3" placeholder="Ej: Motivos personales, desarrollo profesional y ambiente laboral desagradable..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger px-4">Confirmar Baja</button>
                     </div>
                 </form>
             </div>
@@ -529,6 +699,8 @@
                                 <option value="Permiso sin Goce">Permiso sin Goce de Sueldo</option>
                                 <option value="Falta Injustificada">Falta Injustificada</option>
                                 <option value="Reposicion de tiempo">Reposición de tiempo</option>
+                                <option value="Suspención HRH">Suspención HRH</option>
+                                <option value="Asueto / Feriado">Asueto / Feriado</option>
                             </select>
                         </div>
                         <div class="row">
@@ -616,7 +788,7 @@
         </div>
     </div>
     
-    <script>
+<script>
     document.addEventListener("DOMContentLoaded", function() {
         const selectTipo = document.getElementById('tipoMovimiento');
         const inputInicio = document.getElementById('fechaInicio');
@@ -624,11 +796,20 @@
         const colDesde = document.getElementById('colDesde');
         const colHasta = document.getElementById('colHasta');
         const labelDesde = document.getElementById('labelDesde');
+
         // Función que evalúa qué mostrar según el tipo de movimiento
         function evaluarFechas() {
             const tipo = selectTipo.value;
-            // Movimientos que son de 1 solo día
-            const deUnDia = ['Día Libre', 'Descanso', 'Reposicion de tiempo'];
+            
+            // --- AQUÍ ESTÁ LA MAGIA: Agregamos las nuevas opciones ---
+            const deUnDia = [
+                'Día Libre', 
+                'Descanso', 
+                'Reposicion de tiempo', 
+                'Suspención HRH', 
+                'Asueto / Feriado'
+            ];
+
             if (deUnDia.includes(tipo)) {
                 // Ocultar "Hasta"
                 colHasta.style.display = 'none';
@@ -636,6 +817,7 @@
                 colDesde.classList.remove('col-6');
                 colDesde.classList.add('col-12');
                 labelDesde.textContent = 'Fecha del evento';
+                
                 // Sincronizar automáticamente la fecha final con la inicial
                 inputFin.value = inputInicio.value;
             } else {
@@ -647,16 +829,19 @@
                 labelDesde.textContent = 'Desde';
             }
         }
+
         // Ejecutar cuando se cambie el selector
         selectTipo.addEventListener('change', evaluarFechas);
+        
         // Ejecutar cuando se cambie la fecha de inicio (para mantener sincronizado "Hasta" si está oculto)
         inputInicio.addEventListener('change', function() {
             const tipo = selectTipo.value;
-            const deUnDia = ['Día Libre', 'Descanso', 'Reposicion de tiempo'];
+            const deUnDia = ['Día Libre', 'Descanso', 'Reposicion de tiempo', 'Suspención HRH', 'Asueto / Feriado'];
             if (deUnDia.includes(tipo)) {
                 inputFin.value = inputInicio.value;
             }
         });
+
         // Ejecutar al abrir la página por primera vez
         evaluarFechas();
     });

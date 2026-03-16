@@ -3,6 +3,25 @@
 require_once 'seguridad.php';
 require_once 'config/db.php';
 
+// --- FUNCIÓN PARA CALCULAR TIEMPOS AMIGABLES (Ej: "2 año(s) 4 mes(es)") ---
+function calcularTiempoAmigable($fecha_inicio, $fecha_fin) {
+    if (empty($fecha_inicio) || empty($fecha_fin)) return "--";
+    try {
+        $d1 = new DateTime($fecha_inicio);
+        $d2 = new DateTime($fecha_fin);
+        if ($d2 < $d1) return "0 día(s)"; // Prevención de errores de fechas
+        
+        $diff = $d1->diff($d2);
+        $partes = [];
+        if ($diff->y > 0) $partes[] = $diff->y . " año(s)";
+        if ($diff->m > 0) $partes[] = $diff->m . " mes(es)";
+        if (empty($partes)) $partes[] = $diff->d . " día(s)"; 
+        return implode(" ", $partes);
+    } catch (Exception $e) {
+        return "--";
+    }
+}
+
 $empleados = [];
 
 // --- 1. CARGAR CATÁLOGOS PARA LOS FILTROS ---
@@ -21,10 +40,10 @@ $filtro_area    = $_GET['f_area'] ?? '';
 $filtro_renglon = $_GET['f_renglon'] ?? '';
 $filtro_orden   = $_GET['f_orden'] ?? 'reciente'; // Valor por defecto
 
-// Base de la consulta
+// Base de la consulta (SE AGREGÓ fecha_ultimo_ascenso)
 $sql = "SELECT 
             e.id, e.dpi, e.nombres, e.apellidos, e.telefono, e.estado, e.foto_perfil, e.correo_electronico, 
-            e.fecha_inicio_labores,
+            e.fecha_inicio_labores, e.fecha_ultimo_ascenso,
             a.nombre AS area,
             pn.nombre AS puesto_nominal,    
             cf.nombre AS puesto_funcional,  
@@ -69,16 +88,35 @@ switch ($filtro_orden) {
         break;
 }
 
-// --- 3. EJECUTAR CONSULTA ---
+// --- 3. EJECUTAR CONSULTA Y OBTENER HISTORIALES ---
+$historiales = [];
 try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Contadores (Calculados sobre los resultados filtrados o globales según prefieras)
+    // Contadores 
     $total_emp = count($empleados);
     $activos = count(array_filter($empleados, fn($e) => $e['estado'] === 'Activo'));
     $bajas = count(array_filter($empleados, fn($e) => $e['estado'] === 'Baja'));
+
+    // Obtener historial laboral para los desplegables
+    if ($total_emp > 0) {
+        $ids_empleados = array_column($empleados, 'id');
+        $placeholders = implode(',', array_fill(0, count($ids_empleados), '?'));
+        
+        $sqlHist = "SELECT hl.empleado_id, hl.fecha_inicio_puesto, hl.fecha_fin_puesto, a.nombre AS area_ant 
+                    FROM historial_laboral hl
+                    LEFT JOIN catalogo_areas a ON hl.area_anterior_id = a.id
+                    WHERE hl.empleado_id IN ($placeholders)
+                    ORDER BY hl.fecha_fin_puesto DESC";
+        $stmtHist = $pdo->prepare($sqlHist);
+        $stmtHist->execute($ids_empleados);
+        
+        foreach ($stmtHist->fetchAll(PDO::FETCH_ASSOC) as $hist) {
+            $historiales[$hist['empleado_id']][] = $hist;
+        }
+    }
 
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage();
@@ -167,7 +205,7 @@ try {
             <div class="card card-stat p-3 bg-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted text-uppercase mb-1">Bajas / Inactivos</h6>
+                        <h6 class="text-muted text-uppercase mb-1">Bajas / Suspendidos / Jubilado </h6>
                         <h3 class="fw-bold mb-0 text-danger"><?= $bajas ?></h3>
                     </div>
                     <div class="bg-danger bg-opacity-10 p-3 rounded-circle text-danger">
@@ -224,24 +262,26 @@ try {
                 </div>
 
                 <div class="col-md-3 d-flex gap-2 justify-content-md-end justify-content-center flex-wrap mt-2 mt-md-0">
-                        
-                        <?php if(!empty($filtro_area) || !empty($filtro_renglon) || $filtro_orden != 'reciente'): ?>
-                            <a href="index.php" class="btn btn-sm btn-outline-danger shadow-sm" title="Limpiar Filtros">
-                                <i class="bi bi-x-lg"></i>
-                            </a>
-                        <?php endif; ?>
-                        
-                        <a href="estadisticas.php" class="btn btn-sm btn-info text-white text-nowrap shadow-sm" title="Ir a Estadísticas">
-                            <i class="bi bi-bar-chart-fill"></i> 
-                            <span class="d-none d-lg-inline">Estadísticas</span>
+                    
+                    <?php if(!empty($filtro_area) || !empty($filtro_renglon) || $filtro_orden != 'reciente'): ?>
+                        <a href="index.php" class="btn btn-sm btn-outline-danger shadow-sm" title="Limpiar Filtros">
+                            <i class="bi bi-x-lg"></i>
                         </a>
-                        
-                        <a href="crear_empleado.php" class="btn btn-sm btn-primary text-nowrap shadow-sm">
-                            <i class="bi bi-plus-lg"></i> 
-                            Nuevo <span class="d-none d-xl-inline">Empleado</span>
-                        </a>
-                        
+                    <?php endif; ?>
+                    
+                    <a href="estadisticas.php" class="btn btn-sm btn-info text-white text-nowrap shadow-sm" title="Ir a Estadísticas">
+                        <i class="bi bi-bar-chart-fill"></i> 
+                        <span class="d-none d-lg-inline">Estadísticas</span>
+                    </a>
+                    
+                    <a href="crear_empleado.php" class="btn btn-sm btn-primary text-nowrap shadow-sm">
+                        <i class="bi bi-plus-lg"></i> 
+                        Nuevo <span class="d-none d-xl-inline">Empleado</span>
+                    </a>
+                    
                 </div>
+       
+
             </div>
           </form>
          </div>
@@ -267,55 +307,80 @@ try {
                         <tr ondblclick="window.location.href='perfil_empleado.php?id=<?= $emp['id'] ?>'" title="Doble clic para ver perfil">
                             
                             <td class="ps-4">
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-start">
                                     <?php 
                                         $initials = strtoupper(substr($emp['nombres'], 0, 1) . substr($emp['apellidos'], 0, 1));
                                         $colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger', 'bg-secondary'];
                                         $randomColor = $colors[array_rand($colors)];
                                         
-                                        // AQUÍ ESTÁ EL CAMBIO: Ahora busca en imagenes/perfiles/
                                         if (!empty($emp['foto_perfil']) && file_exists("imagenes/perfiles/" . $emp['foto_perfil'])) {
-                                            echo "<img src='imagenes/perfiles/{$emp['foto_perfil']}' class='avatar-circle me-3'>";
+                                            echo "<img src='imagenes/perfiles/{$emp['foto_perfil']}' class='avatar-circle me-3 mt-1'>";
                                         } else {
-                                            echo "<div class='avatar-circle {$randomColor} me-3'>{$initials}</div>";
+                                            echo "<div class='avatar-circle {$randomColor} me-3 mt-1'>{$initials}</div>";
                                         }
                                     ?>
                                     <div>
                                         <div class="fw-bold text-dark"><?= $emp['nombres'] ?> <?= $emp['apellidos'] ?></div>
-                                        <div class="small text-muted"><i class="bi bi-card-heading me-1"></i><?= $emp['dpi'] ?></div>
-                                        <?php if($emp['correo_electronico']): ?>
-                                            <div class="small text-muted"><i class="bi bi-envelope me-1"></i><?= $emp['correo_electronico'] ?></div>
-                                        <?php endif; ?>
                                         
                                         <?php 
-                                            $fecha_inicio = new DateTime($emp['fecha_inicio_labores']);
-                                            $hoy = new DateTime();
-                                            $antiguedad = $fecha_inicio->diff($hoy);
-                                            
-                                            // Damos formato visual al tiempo
-                                            $tiempo_texto = "";
-                                            if ($antiguedad->y > 0) {
-                                                $tiempo_texto .= $antiguedad->y . " año(s) ";
-                                            }
-                                            if ($antiguedad->m > 0) {
-                                                $tiempo_texto .= $antiguedad->m . " mes(es)";
-                                            }
-                                            if ($antiguedad->y == 0 && $antiguedad->m == 0) {
-                                                $tiempo_texto = $antiguedad->d . " día(s)"; // Si es muy nuevo
+                                            // MAGIA AQUÍ: Formatear DPI a XXXX XXXXX XXXX
+                                            $dpi = $emp['dpi'];
+                                            if(strlen($dpi) == 13) {
+                                                $dpi_formateado = substr($dpi, 0, 4) . ' ' . substr($dpi, 4, 5) . ' ' . substr($dpi, 9, 4);
+                                            } else {
+                                                $dpi_formateado = $dpi; 
                                             }
                                         ?>
-                                        <div class="small text-primary mt-1 fw-semibold">
-                                            <i class="bi bi-calendar-check me-1"></i>Antigüedad: <?= $tiempo_texto ?>
+                                        <div class="small text-muted mb-2"><i class="bi bi-card-heading me-1"></i><?= $dpi_formateado ?></div>
+                                        
+                                        <?php 
+                                            // Cálculos de tiempo desglosado
+                                            $fecha_actual = date('Y-m-d');
+                                            $fecha_ingreso = $emp['fecha_inicio_labores'];
+                                            $fecha_ultimo_cambio = !empty($emp['fecha_ultimo_ascenso']) ? $emp['fecha_ultimo_ascenso'] : $fecha_ingreso;
+                                            
+                                            $total_tiempo = calcularTiempoAmigable($fecha_ingreso, $fecha_actual);
+                                            $tiempo_actual = calcularTiempoAmigable($fecha_ultimo_cambio, $fecha_actual);
+                                        ?>
+                                        <div class="small fw-semibold text-primary">
+                                            <i class="bi bi-calendar-check me-1"></i>Total: <?= $total_tiempo ?>
                                         </div>
+                                        <div class="small fw-semibold text-success">
+                                            <i class="bi bi-geo-alt-fill me-1"></i>Puesto Actual: <?= $tiempo_actual ?>
+                                        </div>
+
+                                        <?php if (isset($historiales[$emp['id']]) && count($historiales[$emp['id']]) > 0): ?>
+                                            <a data-bs-toggle="collapse" href="#historial-<?= $emp['id'] ?>" class="text-decoration-none text-secondary small d-inline-block mt-1" style="font-size: 0.8rem;" ondblclick="event.stopPropagation();">
+                                                <i class="bi bi-chevron-down"></i> Ver historial de áreas
+                                            </a>
+                                            <div class="collapse mt-1" id="historial-<?= $emp['id'] ?>" ondblclick="event.stopPropagation();">
+                                                <ul class="list-unstyled border-start border-2 border-secondary ps-2 mb-0" style="font-size: 0.8rem;">
+                                                    <?php foreach($historiales[$emp['id']] as $hist): ?>
+                                                        <li class="text-muted mb-1">
+                                                            <strong><?= $hist['area_ant'] ?: 'Desconocida' ?>:</strong> 
+                                                            <?= calcularTiempoAmigable($hist['fecha_inicio_puesto'], $hist['fecha_fin_puesto']) ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </td>
 
                             <td>
                                 <div class="fw-semibold text-dark"><?= $emp['puesto_funcional'] ?></div> 
-                                <div class="text-nominal">
+                                <div class="text-nominal mb-2"> 
                                     <i class="bi bi-briefcase me-1"></i>Ctto: <?= $emp['puesto_nominal'] ?>
                                 </div>
+                                
+                                <?php if($emp['correo_electronico']): ?>
+                                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i><?= $emp['correo_electronico'] ?></div>
+                                <?php endif; ?>
+                                
+                                <?php if($emp['telefono']): ?>
+                                    <div class="small text-muted"><i class="bi bi-telephone me-1"></i><?= $emp['telefono'] ?></div>
+                                <?php endif; ?>
                             </td>
 
                             <td>

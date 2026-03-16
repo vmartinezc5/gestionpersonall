@@ -38,11 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nit = !empty($_POST['nit']) ? mb_strtoupper(trim($_POST['nit']), 'UTF-8') : null;
     $nombres = mb_strtoupper(trim($_POST['nombres']), 'UTF-8');
     $apellidos = mb_strtoupper(trim($_POST['apellidos']), 'UTF-8');
-    $direccion = mb_strtoupper(trim($_POST['direccion']), 'UTF-8'); // También en mayúsculas por coherencia
     
     $tipo_sangre = !empty($_POST['tipo_sangre']) ? $_POST['tipo_sangre'] : null;
+   // ... otros campos ...
     $correo_electronico = !empty($_POST['correo_electronico']) ? trim($_POST['correo_electronico']) : null;
-    
+    $direccion = mb_strtoupper(trim($_POST['direccion']), 'UTF-8');
+    // AGREGAR ESTO:
+    $municipio = mb_strtoupper(trim($_POST['municipio']), 'UTF-8');
+    $departamento = mb_strtoupper(trim($_POST['departamento']), 'UTF-8');
     // Contactos de emergencia en Mayúsculas
     $contacto_emergencia_nombre = mb_strtoupper(trim($_POST['contacto_emergencia_nombre']), 'UTF-8');
     $contacto_emergencia_telefono = !empty($_POST['contacto_emergencia_telefono']) ? trim($_POST['contacto_emergencia_telefono']) : null;
@@ -57,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $sql = "UPDATE empleados SET 
                 dpi = ?, nit = ?, nombres = ?, apellidos = ?, fecha_nacimiento = ?, 
                 genero = ?, tipo_sangre = ?, telefono = ?, correo_electronico = ?, 
-                direccion = ?, contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ?, 
+                direccion = ?, municipio = ?, departamento = ?, contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ?, 
                 contacto_emergencia_nombre2 = ?, contacto_emergencia_telefono2 = ?, 
                 id_renglon = ?, id_area = ?, fecha_inicio_labores = ?, 
                 id_puesto_nominal = ?, id_puesto_funcional = ?, 
@@ -76,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $tipo_sangre, 
             trim($_POST['telefono']), 
             $correo_electronico,
-            $direccion, 
+            $direccion, $municipio, $departamento,
             $contacto_emergencia_nombre, 
             $contacto_emergencia_telefono,
             $contacto_emergencia_nombre2, 
