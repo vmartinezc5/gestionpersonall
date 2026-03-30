@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // --- NUEVO: Control de Inactividad (40 minutos) ---
-$tiempo_maximo_inactividad = 20 * 60; // 40 minutos multiplicados por 60 segundos (2400)
+$tiempo_maximo_inactividad = 40 * 60; // 40 minutos multiplicados por 60 segundos (2400)
 
 if (isset($_SESSION['ultimo_acceso'])) {
     // Calculamos cuánto tiempo ha pasado desde el último clic
